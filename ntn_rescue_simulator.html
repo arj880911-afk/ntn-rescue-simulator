@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TN-NTN 融合網路救災通訊模擬器</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #1a1d27;
+    --bg3: #22263a;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --text: #e8eaf0;
+    --text2: #8b90a0;
+    --text3: #555a6e;
+    --blue: #4a9eff;
+    --blue-dim: rgba(74,158,255,0.12);
+    --green: #3ecf8e;
+    --green-dim: rgba(62,207,142,0.12);
+    --red: #ff5c5c;
+    --red-dim: rgba(255,92,92,0.12);
+    --amber: #f5a623;
+    --amber-dim: rgba(245,166,35,0.10);
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'SF Pro Display', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .header {
+    margin-bottom: 28px;
+    border-bottom: 0.5px solid var(--border);
+    padding-bottom: 20px;
+  }
+
+  .header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.3px;
+    margin-bottom: 4px;
+  }
+
+  .header p {
+    font-size: 12px;
+    color: var(--text2);
+    font-family: 'SF Mono', 'Menlo', monospace;
+  }
+
+  .badge {
+    display: inline-block;
+    background: var(--blue-dim);
+    color: var(--blue);
+    font-size: 10px;
+    font-family: monospace;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 0.5px solid rgba(74,158,255,0.25);
+    margin-left: 10px;
+    vertical-align: middle;
+    letter-spacing: 0.05em;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .ctrl-card {
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+
+  .ctrl-label {
+    font-size: 11px;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+  }
+
+  .ctrl-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: var(--bg3);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--blue);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 6px rgba(74,158,255,0.4);
+  }
+
+  .ctrl-val {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    min-width: 60px;
+    text-align: right;
+    font-family: monospace;
+  }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .metric {
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    transition: border-color 0.3s;
+  }
+
+  .metric.active-tn { border-color: rgba(74,158,255,0.4); }
+  .metric.active-ntn { border-color: rgba(62,207,142,0.4); }
+  .metric.warn { border-color: rgba(255,92,92,0.4); }
+
+  .metric-label {
+    font-size: 11px;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+
+  .metric-val {
+    font-size: 26px;
+    font-weight: 700;
+    font-family: monospace;
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+
+  .metric-unit {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: monospace;
+  }
+
+  .blue { color: var(--blue); }
+  .green { color: var(--green); }
+  .red { color: var(--red); }
+  .amber { color: var(--amber); }
+
+  .status-bar {
+    border-radius: var(--radius);
+    padding: 12px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.4s;
+    border: 0.5px solid transparent;
+  }
+
+  .status-ok {
+    background: var(--green-dim);
+    border-color: rgba(62,207,142,0.25);
+    color: var(--green);
+  }
+
+  .status-warn {
+    background: var(--red-dim);
+    border-color: rgba(255,92,92,0.3);
+    color: var(--red);
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .chart-section {
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .chart-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .legend {
+    display: flex;
+    gap: 18px;
+    font-size: 11px;
+    color: var(--text2);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .legend-line {
+    width: 20px;
+    height: 2px;
+    border-radius: 1px;
+  }
+
+  .legend-dash {
+    width: 20px;
+    height: 0;
+    border-top: 2px dashed;
+  }
+
+  .chart-wrap {
+    position: relative;
+    width: 100%;
+    height: 280px;
+  }
+
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .log-section {
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+
+  .log-entry {
+    display: grid;
+    grid-template-columns: 72px 1fr auto;
+    gap: 8px;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 0.5px solid var(--border);
+    font-size: 11px;
+    font-family: monospace;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .log-entry:last-child { border-bottom: none; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .log-time { color: var(--text3); }
+  .log-event { color: var(--text); }
+  .log-tag {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .tag-tn { background: var(--blue-dim); color: var(--blue); border: 0.5px solid rgba(74,158,255,0.2); }
+  .tag-ntn { background: var(--green-dim); color: var(--green); border: 0.5px solid rgba(62,207,142,0.2); }
+  .tag-warn { background: var(--red-dim); color: var(--red); border: 0.5px solid rgba(255,92,92,0.2); }
+  .tag-amber { background: var(--amber-dim); color: var(--amber); border: 0.5px solid rgba(245,166,35,0.2); }
+
+  .param-section {
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+
+  table.param {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+
+  table.param th {
+    text-align: left;
+    color: var(--text3);
+    font-weight: 400;
+    padding: 5px 6px;
+    border-bottom: 0.5px solid var(--border);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 10px;
+  }
+
+  table.param td {
+    padding: 6px 6px;
+    border-bottom: 0.5px solid var(--border);
+    color: var(--text);
+    font-family: monospace;
+    font-size: 11px;
+    vertical-align: top;
+  }
+
+  table.param td:first-child { color: var(--text2); font-family: inherit; }
+  table.param td:last-child { color: var(--text3); font-size: 10px; font-family: inherit; }
+  table.param tr:last-child td { border-bottom: none; }
+
+  .footer {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 0.5px solid var(--border);
+    font-size: 10px;
+    color: var(--text3);
+    font-family: monospace;
+    line-height: 1.8;
+  }
+
+  .empty-log {
+    color: var(--text3);
+    font-size: 11px;
+    text-align: center;
+    padding: 16px 0;
+    font-family: monospace;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>TN-NTN 融合網路救災通訊模擬器
+    <span class="badge">3GPP TR 38.821</span>
+    <span class="badge">ITU-R P.525</span>
+  </h1>
+  <p>VLEO 300 km · 頻段 n78 (3.5 GHz) · 山地多路徑衰落模型 · 動態 Handover 邏輯</p>
+</div>
+
+<div class="grid-3">
+  <div class="ctrl-card">
+    <div class="ctrl-label">無人機距基地台距離</div>
+    <div class="ctrl-row">
+      <input type="range" id="dist" min="100" max="5000" step="100" value="1000">
+      <span class="ctrl-val" id="dist-out">1000 m</span>
+    </div>
+  </div>
+  <div class="ctrl-card">
+    <div class="ctrl-label">山體遮蔽高度</div>
+    <div class="ctrl-row">
+      <input type="range" id="shadow" min="0" max="600" step="10" value="0">
+      <span class="ctrl-val" id="shadow-out">0 m</span>
+    </div>
+  </div>
+  <div class="ctrl-card">
+    <div class="ctrl-label">衛星仰角 (Elevation Angle)</div>
+    <div class="ctrl-row">
+      <input type="range" id="elev" min="10" max="90" step="5" value="90">
+      <span class="ctrl-val" id="elev-out">90°</span>
+    </div>
+  </div>
+</div>
+
+<div class="metrics">
+  <div class="metric" id="card-tn">
+    <div class="metric-label">地面網路 TN RSRP</div>
+    <div class="metric-val blue" id="tn-rsrp">—</div>
+    <div class="metric-unit">dBm</div>
+  </div>
+  <div class="metric" id="card-ntn">
+    <div class="metric-label">衛星網路 NTN RSRP</div>
+    <div class="metric-val green" id="ntn-rsrp">—</div>
+    <div class="metric-unit">dBm · 仰角修正</div>
+  </div>
+  <div class="metric" id="card-lat">
+    <div class="metric-label">端到端延遲 (E2E)</div>
+    <div class="metric-val" id="latency-val" style="color:var(--text);">—</div>
+    <div class="metric-unit">ms · 含重傳估算</div>
+  </div>
+  <div class="metric" id="card-link">
+    <div class="metric-label">作用鏈路</div>
+    <div class="metric-val" id="active-link" style="font-size:18px; padding-top:4px;">—</div>
+    <div class="metric-unit" id="link-mode">—</div>
+  </div>
+</div>
+
+<div class="status-bar status-ok" id="status-bar">
+  <div class="dot"></div>
+  <span id="status-text">地面網路（TN）連線正常，訊號穩定</span>
+</div>
+
+<div class="chart-section">
+  <div class="chart-header">
+    <span class="chart-title">鏈路品質即時曲線</span>
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-line" style="background:var(--blue);"></div>
+        <span>地面網路 TN（含衰落）</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dash" style="border-color:var(--green);"></div>
+        <span>衛星網路 NTN (VLEO)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dash" style="border-color:var(--red);"></div>
+        <span>切換閾值 −75 dBm</span>
+      </div>
+    </div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="linkChart" role="img" aria-label="TN 與 NTN 訊號強度隨無人機距離變化的折線圖，含多路徑衰落，紅色虛線為切換閾值 -75 dBm">訊號強度折線圖</canvas>
+  </div>
+</div>
+
+<div class="bottom-grid">
+  <div class="log-section">
+    <div class="section-title">切換事件日誌</div>
+    <div id="log-body">
+      <div class="empty-log">// 尚無事件記錄，請拖動滑桿</div>
+    </div>
+  </div>
+  <div class="param-section">
+    <div class="section-title">模擬參數設定</div>
+    <table class="param">
+      <thead><tr><th>參數</th><th>數值</th><th>依據</th></tr></thead>
+      <tbody>
+        <tr><td>發射功率 P_tx</td><td>30 dBm</td><td>O-RAN 無人機典型值</td></tr>
+        <tr><td>頻段</td><td>n78 · 3.5 GHz</td><td>台灣主力 5G 頻段</td></tr>
+        <tr><td>切換閾值</td><td>−75 dBm</td><td>3GPP TR 38.821</td></tr>
+        <tr><td>VLEO 高度</td><td>300 km</td><td>ITU-R M.2160</td></tr>
+        <tr><td>陰影衰落標準差</td><td>8 dB</td><td>山地場景典型值</td></tr>
+        <tr><td>多路徑抖動</td><td>±5 dB</td><td>Rayleigh 衰落近似</td></tr>
+        <tr><td>NTN E2E 延遲</td><td>~22 ms</td><td>3GPP TR 38.821 拆解</td></tr>
+        <tr><td>路徑損耗公式</td><td>ITU-R P.525</td><td>自由空間模型</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer">
+  © 模擬基於 3GPP TR 38.821 v17.0.0 · ITU-R P.525-4 · ITU-R M.2160 (IMT-2030) ·
+  Jiang et al., "6G NTN Enabled LAE", arXiv:2311.09047v2, 2024<br>
+  本模擬器為教學示意用途，數值為物理估算，非實際量測數據
+</div>
+
+<script>
+const PTX = 30;
+const FREQ = 3.5e9;
+const C = 3e8;
+const THRESHOLD = -75;
+const VLEO_H = 300e3;
+const SHADOW_STD = 8;
+const MULTIPATH_AMP = 5;
+const SHADOW_FACTOR = 0.055;
+
+let logEntries = [];
+let lastHandoverState = false;
+let fadingSeeds = [];
+let shadowSeeds = [];
+const N_POINTS = 60;
+
+function seededRand(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 4294967296;
+  };
+}
+
+function initSeeds(shadowVal, elevVal) {
+  const sr = seededRand(shadowVal * 31 + elevVal * 7);
+  const fr = seededRand(shadowVal * 17 + elevVal * 13 + 99);
+  shadowSeeds = Array.from({length: N_POINTS}, () => (sr() - 0.5) * 2 * SHADOW_STD);
+  fadingSeeds = Array.from({length: N_POINTS}, () => (fr() - 0.5) * 2 * MULTIPATH_AMP);
+}
+
+function calcFSL(d_m) {
+  if (d_m <= 0) d_m = 1;
+  return 20 * Math.log10(d_m) + 20 * Math.log10(FREQ) + 20 * Math.log10(4 * Math.PI / C);
+}
+
+function calcTNrsrp(d_m, shadow_m, shadowOffset, fadingOffset) {
+  const fsl = calcFSL(d_m);
+  const shadowLoss = shadow_m * SHADOW_FACTOR;
+  return PTX - fsl - shadowLoss + (shadowOffset || 0) + (fadingOffset || 0);
+}
+
+function calcNTNrsrp(elev_deg) {
+  const elev_rad = elev_deg * Math.PI / 180;
+  const slant = VLEO_H / Math.sin(elev_rad);
+  const fsl = calcFSL(slant);
+  const GTX = 30;
+  const GRX = 5;
+  return PTX + GTX + GRX - fsl;
+}
+
+function calcTNlatency(rsrp) {
+  if (rsrp >= -60) return 5;
+  if (rsrp >= -70) return 5 + ((-60 - rsrp) / 10) * 5;
+  if (rsrp >= -75) return 10 + ((-70 - rsrp) / 5) * 8;
+  return 18 + Math.random() * 5;
+}
+
+function calcNTNlatency() {
+  return 20 + Math.random() * 4;
+}
+
+function getNow() {
+  const d = new Date();
+  return [d.getHours(), d.getMinutes(), d.getSeconds()]
+    .map(v => String(v).padStart(2,'0')).join(':');
+}
+
+function addLog(event, tnVal, link, tagClass, mode) {
+  const entry = { time: getNow(), event, tnVal, link, tagClass, mode };
+  logEntries.unshift(entry);
+  if (logEntries.length > 7) logEntries.pop();
+  renderLog();
+}
+
+function renderLog() {
+  const body = document.getElementById('log-body');
+  if (logEntries.length === 0) {
+    body.innerHTML = '<div class="empty-log">// 尚無事件記錄，請拖動滑桿</div>';
+    return;
+  }
+  body.innerHTML = logEntries.map(e => `
+    <div class="log-entry">
+      <span class="log-time">${e.time}</span>
+      <span class="log-event">${e.event} <span style="color:var(--text3)">${e.tnVal.toFixed(1)} dBm</span></span>
+      <span class="log-tag ${e.tagClass}">${e.link}</span>
+    </div>
+  `).join('');
+}
+
+const chartLabels = Array.from({length: N_POINTS}, (_, i) =>
+  Math.round(100 + i * (4900 / (N_POINTS - 1)))
+);
+
+const ctx = document.getElementById('linkChart').getContext('2d');
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: chartLabels,
+    datasets: [
+      {
+        label: '地面網路 TN',
+        data: [],
+        borderColor: '#4a9eff',
+        backgroundColor: 'rgba(74,158,255,0.06)',
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.2,
+        fill: false
+      },
+      {
+        label: '衛星網路 NTN',
+        data: [],
+        borderColor: '#3ecf8e',
+        borderWidth: 2,
+        pointRadius: 0,
+        borderDash: [7, 4],
+        tension: 0,
+        fill: false
+      },
+      {
+        label: '切換閾值',
+        data: chartLabels.map(() => THRESHOLD),
+        borderColor: '#ff5c5c',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        borderDash: [4, 4],
+        fill: false
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 150 },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#1a1d27',
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
+        titleColor: '#8b90a0',
+        bodyColor: '#e8eaf0',
+        callbacks: {
+          label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + ' dBm'
+        }
+      }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: '距離 (m)', color: '#555a6e', font: { size: 11 } },
+        ticks: { maxTicksLimit: 8, color: '#555a6e', font: { size: 10 } },
+        grid: { color: 'rgba(255,255,255,0.04)' }
+      },
+      y: {
+        title: { display: true, text: 'RSRP (dBm)', color: '#555a6e', font: { size: 11 } },
+        min: -140,
+        max: -20,
+        ticks: { color: '#555a6e', font: { size: 10 } },
+        grid: { color: 'rgba(255,255,255,0.04)' }
+      }
+    }
+  }
+});
+
+let handoverPeak = false;
+let handoverPeakTimer = null;
+
+function update() {
+  const d = parseInt(document.getElementById('dist').value);
+  const s = parseInt(document.getElementById('shadow').value);
+  const elev = parseInt(document.getElementById('elev').value);
+
+  document.getElementById('dist-out').textContent = d + ' m';
+  document.getElementById('shadow-out').textContent = s + ' m';
+  document.getElementById('elev-out').textContent = elev + '°';
+
+  initSeeds(s, elev);
+
+  const tnData = chartLabels.map((dd, i) =>
+    calcTNrsrp(dd, s, shadowSeeds[i], fadingSeeds[i])
+  );
+
+  const ntnBase = calcNTNrsrp(elev);
+  const ntnData = chartLabels.map((_, i) => {
+    const jitter = (fadingSeeds[i] * 0.3);
+    return ntnBase + jitter;
+  });
+
+  chart.data.datasets[0].data = tnData;
+  chart.data.datasets[1].data = ntnData;
+
+  const nearIdx = chartLabels.reduce((best, dd, i) =>
+    Math.abs(dd - d) < Math.abs(chartLabels[best] - d) ? i : best, 0);
+
+  chart.data.datasets[0].pointRadius = chartLabels.map((_, i) => i === nearIdx ? 5 : 0);
+  chart.data.datasets[0].pointBackgroundColor = '#4a9eff';
+  chart.update('none');
+
+  const tnRsrp = tnData[nearIdx];
+  const ntnRsrp = ntnData[nearIdx];
+  const isHandover = tnRsrp < THRESHOLD;
+  const activeLink = isHandover ? 'NTN' : 'TN';
+
+  let displayLatency;
+  if (handoverPeak) {
+    displayLatency = (35 + Math.random() * 8).toFixed(0);
+  } else if (isHandover) {
+    displayLatency = calcNTNlatency().toFixed(0);
+  } else {
+    displayLatency = calcTNlatency(tnRsrp).toFixed(0);
+  }
+
+  document.getElementById('tn-rsrp').textContent = tnRsrp.toFixed(1);
+  document.getElementById('ntn-rsrp').textContent = ntnRsrp.toFixed(1);
+  document.getElementById('latency-val').textContent = displayLatency;
+
+  const latEl = document.getElementById('latency-val');
+  if (handoverPeak) {
+    latEl.style.color = 'var(--red)';
+  } else if (isHandover) {
+    latEl.style.color = 'var(--green)';
+  } else {
+    const ratio = Math.min(1, Math.max(0, (-60 - tnRsrp) / 20));
+    latEl.style.color = ratio > 0.5 ? 'var(--amber)' : 'var(--text)';
+  }
+
+  const modeText = isHandover ? 'BVLOS Control Command' : 'Data Backhaul Sync';
+  document.getElementById('active-link').textContent = activeLink;
+  document.getElementById('active-link').style.color = isHandover ? 'var(--green)' : 'var(--blue)';
+  document.getElementById('link-mode').textContent = modeText;
+
+  const statusBar = document.getElementById('status-bar');
+  const statusText = document.getElementById('status-text');
+  if (isHandover) {
+    statusBar.className = 'status-bar status-warn';
+    statusText.textContent = '⚠ TN 訊號低於 −75 dBm 門檻，已自動切換至 VLEO 衛星鏈路（NTN）';
+  } else {
+    statusBar.className = 'status-bar status-ok';
+    statusText.textContent = '地面網路（TN）連線正常，訊號穩定';
+  }
+
+  const cardTN = document.getElementById('card-tn');
+  const cardNTN = document.getElementById('card-ntn');
+  const cardLat = document.getElementById('card-lat');
+  cardTN.className = isHandover ? 'metric warn' : 'metric active-tn';
+  cardNTN.className = isHandover ? 'metric active-ntn' : 'metric';
+  cardLat.className = handoverPeak ? 'metric warn' : 'metric';
+
+  if (isHandover !== lastHandoverState) {
+    if (isHandover) {
+      addLog('TN 訊號降級', tnRsrp, 'TN 降級', 'tag-warn', modeText);
+      setTimeout(() => addLog('Handover 觸發 → NTN', tnRsrp, 'Handover', 'tag-warn', modeText), 350);
+      handoverPeak = true;
+      if (handoverPeakTimer) clearTimeout(handoverPeakTimer);
+      handoverPeakTimer = setTimeout(() => {
+        handoverPeak = false;
+        addLog('NTN 鏈路建立成功', tnRsrp, 'NTN 啟用', 'tag-ntn', modeText);
+        update();
+      }, 700);
+    } else {
+      addLog('TN 訊號恢復', tnRsrp, 'TN 恢復', 'tag-tn', modeText);
+    }
+    lastHandoverState = isHandover;
+  }
+}
+
+document.getElementById('dist').addEventListener('input', update);
+document.getElementById('shadow').addEventListener('input', update);
+document.getElementById('elev').addEventListener('input', update);
+update();
+</script>
+</body>
+</html>
