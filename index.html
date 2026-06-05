@@ -596,6 +596,7 @@ const chartLabels = Array.from({length: N_POINTS}, (_, i) =>
 
 // ─── 無人機圖片 marker 插件 ──────────────────────────────────────
 const DRONE_IMG = new Image();
+DRONE_IMG.onload = () => chart.update('none'); // 圖片載入完成後強制重繪
 DRONE_IMG.src = './drone.png'; // ← 圖片與 index.html 放同一資料夾
 
 const droneMarkerPlugin = {
