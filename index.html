@@ -594,9 +594,33 @@ const chartLabels = Array.from({length: N_POINTS}, (_, i) =>
   Math.round(100 + i * (4900 / (N_POINTS - 1)))
 );
 
+// ─── 無人機圖片 marker 插件 ──────────────────────────────────────
+const DRONE_IMG = new Image();
+DRONE_IMG.src = './drone.png'; // ← 圖片與 index.html 放同一資料夾
+
+const droneMarkerPlugin = {
+  id: 'droneMarker',
+  afterDatasetsDraw(chart) {
+    const meta = chart.getDatasetMeta(0);
+    if (!meta || !meta.data) return;
+    const activeIdx = chart._activePointIdx;
+    if (activeIdx == null) return;
+    const pt = meta.data[activeIdx];
+    if (!pt || !DRONE_IMG.complete) return;
+
+    const size = 36; // 圖示大小（px），可自行調整
+    const ctx2 = chart.ctx;
+    ctx2.save();
+    ctx2.drawImage(DRONE_IMG, pt.x - size / 2, pt.y - size / 2, size, size);
+    ctx2.restore();
+  }
+};
+// ────────────────────────────────────────────────────────────────
+
 const ctx = document.getElementById('linkChart').getContext('2d');
 const chart = new Chart(ctx, {
   type: 'line',
+  plugins: [droneMarkerPlugin], // ← 加入插件
   data: {
     labels: chartLabels,
     datasets: [
@@ -695,8 +719,8 @@ function update() {
   const nearIdx = chartLabels.reduce((best, dd, i) =>
     Math.abs(dd - d) < Math.abs(chartLabels[best] - d) ? i : best, 0);
 
-  chart.data.datasets[0].pointRadius = chartLabels.map((_, i) => i === nearIdx ? 5 : 0);
-  chart.data.datasets[0].pointBackgroundColor = '#4a9eff';
+  // 把當前索引傳給插件，不再設 pointRadius
+  chart._activePointIdx = nearIdx;
   chart.update('none');
 
   const tnRsrp = tnData[nearIdx];
